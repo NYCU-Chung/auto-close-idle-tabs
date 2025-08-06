@@ -14,23 +14,39 @@
   </style>
 </head>
 <body>
+  <!-- 閒置閾值 (放在同一行裡) -->
   <div class="row">
     <label for="days">閒置閾值：</label>
-    <input id="days" type="number" min="0" placeholder="天">天
-    <input id="hours" type="number" min="0" max="23" placeholder="時">時
-    <input id="minutes" type="number" min="0" max="59" placeholder="分">分
-    <input id="seconds" type="number" min="0" max="59" placeholder="秒">秒
+    <input id="days"    type="number" min="0" placeholder="天"> 天
+    <input id="hours"   type="number" min="0" max="23" placeholder="時"> 時
+    <input id="minutes" type="number" min="0" max="59" placeholder="分"> 分
+    <input id="seconds" type="number" min="0" max="59" placeholder="秒"> 秒
   </div>
+
+  <!-- 提前通知 (同樣放在同一行裡) -->
   <div class="row">
     <label for="notifyDays">提前通知：</label>
-    <input id="notifyDays" type="number" min="0" placeholder="天">天
-    <input id="notifyHours" type="number" min="0" max="23" placeholder="時">時
-    <input id="notifyMinutes" type="number" min="0" max="59" placeholder="分">分
-    <input id="notifySeconds" type="number" min="0" max="59" placeholder="秒">秒
+    <input id="notifyDays"    type="number" min="0" placeholder="天"> 天
+    <input id="notifyHours"   type="number" min="0" max="23" placeholder="時"> 時
+    <input id="notifyMinutes" type="number" min="0" max="59" placeholder="分"> 分
+    <input id="notifySeconds" type="number" min="0" max="59" placeholder="秒"> 秒
   </div>
   <div class="row">
     <label for="enableNotify">啟用通知</label>
     <input id="enableNotify" type="checkbox">
+  </div>
+  <!-- 跳過特定分頁選項（預設勾選） -->
+  <div class="row">
+    <label for="skipPinned">將已固定頁面加入白名單</label>
+    <input id="skipPinned" type="checkbox" checked>
+  </div>
+  <div class="row">
+    <label for="skipAudible">將播放中頁面加入白名單</label>
+    <input id="skipAudible" type="checkbox" checked>
+  </div>
+  <div class="row">
+    <label for="skipForm">將含未提交表單頁面加入白名單</label>
+    <input id="skipForm" type="checkbox" checked>
   </div>
   <div class="explanation">
     <p><strong>白名單</strong>：URL 含關鍵字，永不關閉。</p>

@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     idleDays:0,idleHours:0,idleMinutes:30,idleSeconds:0,
     notifyDays:0,notifyHours:0,notifyMinutes:10,notifySeconds:0,
     enableNotify:true,
+    skipPinned:   true,
+    skipAudible:  true,
+    skipForm:     true,
     whitelist:[],blacklist:[]
   };
   function toInt(id){const el=$(id),n=el?parseInt(el.value,10):0;return isNaN(n)?0:n;}
@@ -45,6 +48,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     $('enableNotify').checked=p.enableNotify;
     $('whitelist').value=p.whitelist.join('\n');
     $('blacklist').value=p.blacklist.join('\n');
+    $('enableNotify').checked = p.enableNotify;
+    $('skipPinned').checked   = p.skipPinned;
+    $('skipAudible').checked  = p.skipAudible;
+    $('skipForm').checked     = p.skipForm;
   });
 
   // 儲存設定並套黑名單
@@ -55,6 +62,9 @@ document.addEventListener('DOMContentLoaded',()=>{
       notifyDays:toInt('notifyDays'),notifyHours:toInt('notifyHours'),
       notifyMinutes:toInt('notifyMinutes'),notifySeconds:toInt('notifySeconds'),
       enableNotify:$('enableNotify').checked,
+      skipPinned:   $('skipPinned').checked,
+      skipAudible:  $('skipAudible').checked,
+      skipForm:     $('skipForm').checked,
       whitelist:$('whitelist').value.split('\n').map(s=>s.trim()).filter(Boolean),
       blacklist:$('blacklist').value.split('\n').map(s=>s.trim()).filter(Boolean)
     };

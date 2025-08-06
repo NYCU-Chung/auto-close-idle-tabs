@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "AutoClose Idle Tabs",
-  "version": "1.0",
+  "version": "1.1",
   "permissions": [
     "tabs",
     "storage",
-    "notifications"
+    "notifications",
+    "contextMenus"
   ],
   "background": {
     "service_worker": "background.js"
@@ -13,10 +14,6 @@
   "action": {
     "default_popup": "popup.html"
   },
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "icons": {
-    "48": "icon.png"
-  }
+  "host_permissions": ["<all_urls>"],
+  "icons": { "48": "icon.png" }
 }

@@ -90,20 +90,36 @@ function closeTabNow(id){
   stopCounting(id);
 }
 
-// 安全的白/黑名單比對（主以 hostname，退回 href）
+// 安全的白/黑名單比對（主以 hostname，退回 href），支援簡易通配符 *
 function urlMatches(url, patterns){
   if (!patterns?.length || !url) return false;
   try {
-    const u = new URL(url), host = u.hostname;
+    const u = new URL(url);
+    const host = u.hostname;
     return patterns.some(raw=>{
       const p = String(raw||'').trim();
       if (!p) return false;
+      // 支援如 *.example.com 的簡易通配符
+      if (p.includes('*')) {
+        const regex = '^' + p.split('*').map(s => s.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')).join('.*') + '$';
+        const re = new RegExp(regex);
+        return re.test(host) || re.test(u.href);
+      }
       if (host === p) return true;
-      if (host.endsWith('.'+p)) return true;
+      if (host.endsWith('.' + p)) return true;
       return u.href.includes(p);
     });
   } catch {
-    return patterns.some(raw => (url||'').includes(String(raw||'').trim()));
+    // 無法解析為 URL 時直接比對字串
+    return patterns.some(raw => {
+      const p = String(raw||'').trim();
+      if (!p) return false;
+      if (p.includes('*')) {
+        const regex = '^' + p.split('*').map(s => s.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')).join('.*') + '$';
+        return new RegExp(regex).test(url);
+      }
+      return (url||'').includes(p);
+    });
   }
 }
 

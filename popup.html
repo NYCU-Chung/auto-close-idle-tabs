@@ -1,72 +1,67 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <style>
     body{font-family:sans-serif;padding:10px;min-width:360px}
     .row{margin-bottom:10px;display:flex;flex-wrap:wrap;align-items:center}
-    label{width:80px} input{width:60px;margin-right:5px}
+    label{width:80px}
+    input{width:60px;margin-right:5px}
     textarea{width:100%;height:60px;font-family:monospace;margin-bottom:10px}
-    button{margin-right:10px} #status{color:green;font-size:13px}
+    button{margin-right:10px}
+    #status{color:green;font-size:13px}
     .explanation{font-size:12px;color:#555;margin-bottom:10px}
     ul{padding-left:20px;max-height:200px;overflow-y:auto}
     li{margin-bottom:4px;font-size:13px;word-break:break-all}
   </style>
 </head>
 <body>
-  <!-- 閒置閾值 (放在同一行裡) -->
   <div class="row">
-    <label for="days">閒置閾值：</label>
-    <input id="days"    type="number" min="0" placeholder="天"> 天
-    <input id="hours"   type="number" min="0" max="23" placeholder="時"> 時
-    <input id="minutes" type="number" min="0" max="59" placeholder="分"> 分
-    <input id="seconds" type="number" min="0" max="59" placeholder="秒"> 秒
-  </div>
-
-  <!-- 提前通知 (同樣放在同一行裡) -->
-  <div class="row">
-    <label for="notifyDays">提前通知：</label>
-    <input id="notifyDays"    type="number" min="0" placeholder="天"> 天
-    <input id="notifyHours"   type="number" min="0" max="23" placeholder="時"> 時
-    <input id="notifyMinutes" type="number" min="0" max="59" placeholder="分"> 分
-    <input id="notifySeconds" type="number" min="0" max="59" placeholder="秒"> 秒
+    <label>閒置閾值：</label>
+    <input id="days" type="number" min="0" />天
+    <input id="hours" type="number" min="0" />時
+    <input id="minutes" type="number" min="0" />分
+    <input id="seconds" type="number" min="0" />秒
   </div>
   <div class="row">
-    <label for="enableNotify">啟用通知</label>
-    <input id="enableNotify" type="checkbox">
-  </div>
-  <!-- 跳過特定分頁選項（預設勾選） -->
-  <div class="row">
-    <label for="skipPinned">將已固定頁面加入白名單</label>
-    <input id="skipPinned" type="checkbox" checked>
+    <label>提前通知：</label>
+    <input id="notifyDays" type="number" min="0" />天
+    <input id="notifyHours" type="number" min="0" />時
+    <input id="notifyMinutes" type="number" min="0" />分
+    <input id="notifySeconds" type="number" min="0" />秒
   </div>
   <div class="row">
-    <label for="skipAudible">將播放中頁面加入白名單</label>
-    <input id="skipAudible" type="checkbox" checked>
+    <label><input id="enableNotify" type="checkbox" />啟用通知</label>
   </div>
   <div class="row">
-    <label for="skipForm">將含未提交表單頁面加入白名單</label>
-    <input id="skipForm" type="checkbox" checked>
+    <label><input id="skipPinned" type="checkbox" />跳過已固定分頁</label>
+  </div>
+  <div class="row">
+    <label><input id="skipAudible" type="checkbox" />跳過播放中分頁</label>
+  </div>
+  <div class="row">
+    <label><input id="skipForm" type="checkbox" />跳過含未提交表單分頁</label>
   </div>
   <div class="explanation">
-    <p><strong>白名單</strong>：URL 含關鍵字，永不關閉。</p>
-    <p><strong>黑名單</strong>：URL 含關鍵字，立即關閉。</p>
+    <strong>白名單</strong>：URL 含關鍵字，永不關閉。<br />
+    <strong>黑名單</strong>：URL 含關鍵字，立即關閉。
   </div>
   <div class="row">
-    <label for="whitelist">白名單</label>
-    <textarea id="whitelist" placeholder="每行一個 pattern，例如 example.com"></textarea>
+    <label>白名單</label><br />
+    <textarea id="whitelist"></textarea>
   </div>
   <div class="row">
-    <label for="blacklist">黑名單</label>
-    <textarea id="blacklist" placeholder="每行一個 pattern，例如 example.com"></textarea>
+    <label>黑名單</label><br />
+    <textarea id="blacklist"></textarea>
   </div>
   <div class="row">
     <button id="save">儲存設定</button>
     <span id="status"></span>
   </div>
-  <hr>
-  <div><strong>閒置分頁：</strong></div>
-  <ul id="idleList"></ul>
+  <div class="row">
+    <label>閒置分頁：</label>
+    <ul id="idleList"></ul>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

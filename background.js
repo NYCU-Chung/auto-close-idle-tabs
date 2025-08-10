@@ -1,38 +1,30 @@
 // background.js
 
-// -------------------- 狀態（持久化到 storage.session） --------------------
-let EXT_START = Date.now();
+// -------------------- 狀態（持久化到 storage.local） --------------------
 let deactivatedAt = {};           // { tabId: ts }
-let pausedBase    = {};           // { tabId: pausedTotal 當下快照 }
-let warned        = new Set();
+let pausedBase    = {};           // { tabId: 當下 pausedTotal 快照 }
+let warned        = new Set();    // 通知過的 tabId
 let currentTabId  = null;
 const unsavedTabs = new Set();
 
-// 全域暫停：pauseStart = 正在暫停起點（或 null）；pauseAccum = 累積暫停毫秒
+// 全域暫停
 let pauseStart = null;
 let pauseAccum = 0;
 
-// 確保在第一次 checkTabs 前已載入狀態
 let stateLoaded = false;
 async function loadState() {
-  const s = await chrome.storage.session.get([
-    'extStart','deactivatedAt','pausedBase','warned','pauseStart','pauseAccum'
+  const s = await chrome.storage.local.get([
+    'deactivatedAt','pausedBase','warned','pauseStart','pauseAccum'
   ]);
-  EXT_START     = s.extStart ?? EXT_START;
   deactivatedAt = s.deactivatedAt ?? {};
   pausedBase    = s.pausedBase    ?? {};
   warned        = new Set(s.warned ?? []);
   pauseStart    = s.pauseStart ?? null;
   pauseAccum    = s.pauseAccum ?? 0;
-  if (s.extStart == null) await chrome.storage.session.set({ extStart: EXT_START });
   stateLoaded = true;
 }
-async function ensureState() {
-  if (!stateLoaded) await loadState();
-}
 function saveState() {
-  chrome.storage.session.set({
-    extStart: EXT_START,
+  chrome.storage.local.set({
     deactivatedAt,
     pausedBase,
     warned: [...warned],
@@ -40,8 +32,9 @@ function saveState() {
     pauseAccum
   });
 }
+async function ensureState(){ if(!stateLoaded) await loadState(); }
 
-// -------------------- 使用者偏好 --------------------
+// -------------------- 偏好 --------------------
 function loadPrefs() {
   return new Promise(res=>{
     chrome.storage.sync.get({
@@ -73,8 +66,8 @@ function formatDuration(ms){
 function pausedTotal(now=Date.now()){
   return pauseAccum + (pauseStart ? (now - pauseStart) : 0);
 }
-function startCounting(tabId, now=Date.now()){
-  deactivatedAt[tabId] = now;
+function startCounting(tabId, startTs=Date.now(), now=Date.now()){
+  deactivatedAt[tabId] = startTs;
   pausedBase[tabId]    = pausedTotal(now);
   warned.delete(tabId);
   saveState();
@@ -90,7 +83,7 @@ function closeTabNow(id){
   stopCounting(id);
 }
 
-// 安全的白/黑名單比對（主以 hostname，退回 href），支援簡易通配符 *
+// 安全白/黑名單比對（支援 *.example.com）
 function urlMatches(url, patterns){
   if (!patterns?.length || !url) return false;
   try {
@@ -99,9 +92,8 @@ function urlMatches(url, patterns){
     return patterns.some(raw=>{
       const p = String(raw||'').trim();
       if (!p) return false;
-      // 支援如 *.example.com 的簡易通配符
       if (p.includes('*')) {
-        const regex = '^' + p.split('*').map(s => s.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')).join('.*') + '$';
+        const regex = '^' + p.split('*').map(s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('.*') + '$';
         const re = new RegExp(regex);
         return re.test(host) || re.test(u.href);
       }
@@ -110,12 +102,11 @@ function urlMatches(url, patterns){
       return u.href.includes(p);
     });
   } catch {
-    // 無法解析為 URL 時直接比對字串
     return patterns.some(raw => {
       const p = String(raw||'').trim();
       if (!p) return false;
       if (p.includes('*')) {
-        const regex = '^' + p.split('*').map(s => s.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')).join('.*') + '$';
+        const regex = '^' + p.split('*').map(s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('.*') + '$';
         return new RegExp(regex).test(url);
       }
       return (url||'').includes(p);
@@ -126,23 +117,32 @@ function urlMatches(url, patterns){
 // -------------------- 初始化 --------------------
 async function initTabs(){
   await ensureState();
+
+  // 記錄目前作用中的 tab
   chrome.tabs.query({active:true, lastFocusedWindow:true}, tabs=>{
     if (tabs[0]) currentTabId = tabs[0].id;
   });
+
+  // 為所有背景分頁建立起點；若已有紀錄則不覆蓋
   chrome.tabs.query({}, tabs=>{
     const now = Date.now();
     for (const t of tabs) {
-      if (!t.active && t.id!=null && !(t.id in deactivatedAt)) {
-        startCounting(t.id, now);
+      if (t.id==null || t.active) continue;
+      if (!(t.id in deactivatedAt)) {
+        // 用 lastAccessed 當起點回推（fallback: now）
+        const start = (typeof t.lastAccessed === 'number' && t.lastAccessed > 0) ? t.lastAccessed : now;
+        startCounting(t.id, start, now);
       }
     }
   });
+
+  saveState();
 }
 chrome.runtime.onInstalled.addListener(initTabs);
 chrome.runtime.onStartup.addListener(initTabs);
 
 // -------------------- idle/locked 暫停控制 --------------------
-chrome.idle.setDetectionInterval(15);
+chrome.idle.setDetectionInterval(60); // 拉長避免誤觸
 chrome.idle.onStateChanged.addListener(state=>{
   if (state === 'locked' || state === 'idle') {
     if (!pauseStart) { pauseStart = Date.now(); saveState(); }
@@ -154,9 +154,8 @@ chrome.idle.onStateChanged.addListener(state=>{
     }
   }
 });
-
-// SW 啟動時補查目前是否處於 locked/idle（避免漏到 onStateChanged）
-chrome.idle.queryState(15, state => {
+// 啟動時補查目前是否處於 locked/idle
+chrome.idle.queryState(60, state => {
   if ((state === 'locked' || state === 'idle') && !pauseStart) {
     pauseStart = Date.now();
     saveState();
@@ -189,36 +188,34 @@ chrome.contextMenus.onClicked.addListener((info, tab)=>{
   });
 });
 
-// -------------------- 事件：分頁建立/切換/關閉/換網址 --------------------
+// -------------------- 分頁事件 --------------------
 chrome.tabs.onCreated.addListener(async tab=>{
   if (!tab.active && tab.id!=null) {
     const { whitelist=[] } = await new Promise(r=>chrome.storage.sync.get({whitelist:[]}, r));
     if (urlMatches(tab.url||'', whitelist)) { stopCounting(tab.id); return; }
-    startCounting(tab.id);
+    // 用 lastAccessed（新分頁通常接近 now）
+    const start = (typeof tab.lastAccessed==='number' && tab.lastAccessed>0) ? tab.lastAccessed : Date.now();
+    startCounting(tab.id, start);
   }
 });
-
 chrome.tabs.onActivated.addListener(({tabId})=>{
   if (currentTabId!=null && currentTabId!==tabId) {
-    startCounting(currentTabId);        // 前一個開始倒數
+    // 前一個開始倒數（不要覆蓋它既有起點）
+    if (!(currentTabId in deactivatedAt)) startCounting(currentTabId);
   }
   currentTabId = tabId;
-  stopCounting(tabId);                  // 現在這個活頁不倒數
+  stopCounting(tabId); // 目前作用中：不倒數
 });
-
 chrome.tabs.onRemoved.addListener(tabId=>{
   stopCounting(tabId);
   unsavedTabs.delete(tabId);
   if (currentTabId===tabId) currentTabId=null;
 });
-
-// 換網址：若進入白名單，立即退出倒數
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab)=>{
   if (changeInfo.url) {
     const { whitelist=[] } = await new Promise(r=>chrome.storage.sync.get({whitelist:[]}, r));
     if (urlMatches(tab?.url||'', whitelist)) stopCounting(tabId);
   }
-  // 不因 discarded true/false 重設起點；由全域暫停機制處理
 });
 
 // -------------------- content-script 回報表單狀態 --------------------
@@ -231,12 +228,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse)=>{
   if (msg.type==='getDeactivatedTimes') {
     (async ()=>{
       await ensureState();
-      const payload = {
+      sendResponse({
         deactivatedAt,
         pausedBase,
         pausedTotal: pausedTotal()
-      };
-      sendResponse(payload);
+      });
     })();
     return true;
   }
@@ -245,8 +241,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse)=>{
 // -------------------- 每秒檢查 --------------------
 async function checkTabs(){
   await ensureState();
-
-  // 全域暫停中：本輪不計
   if (pauseStart) return;
 
   const prefs  = await loadPrefs();
@@ -268,7 +262,7 @@ async function checkTabs(){
     // 白名單：永不處理
     if (urlMatches(url, wl)) { stopCounting(id); continue; }
 
-    // 執行期跳過（不寫白名單）
+    // 執行期跳過
     if ((prefs.skipPinned && tab.pinned) ||
         (prefs.skipAudible && tab.audible) ||
         (prefs.skipForm && unsavedTabs.has(id))) {
@@ -276,9 +270,12 @@ async function checkTabs(){
       continue;
     }
 
-    // 沒有起點：僅在非活躍時開始
+    // 沒有起點：僅在非活躍時開始（避免覆蓋既有起點）
     if (!(id in deactivatedAt)) {
-      if (!tab.active) startCounting(id, now);
+      if (!tab.active) {
+        const start = (typeof tab.lastAccessed==='number' && tab.lastAccessed>0) ? tab.lastAccessed : now;
+        startCounting(id, start, now);
+      }
       continue;
     }
 
@@ -313,7 +310,7 @@ async function checkTabs(){
   }
 }
 
-// 啟動循環（先確保載入狀態）
+// 啟動循環
 (function tick(){
   (async () => {
     await ensureState();
